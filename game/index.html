@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solano Heat — an open-world crime game</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #10151c; }
+  body { font-family: "Segoe UI", Arial, Helvetica, sans-serif; color: #f5f5f5; }
+  #game { position: fixed; inset: 0; }
+  #game canvas { display: block; }
+
+  .hud-corner { position: fixed; z-index: 5; pointer-events: none; }
+  #hud-left { top: 14px; left: 14px; }
+  #minimap { width: 184px; height: 184px; border: 3px solid rgba(0,0,0,0.55); border-radius: 8px; background: #22414d; }
+  #health-wrap { margin-top: 8px; width: 184px; height: 13px; background: rgba(0,0,0,0.55); border-radius: 6px; overflow: hidden; }
+  #health-fill { height: 100%; width: 100%; background: #66bb6a; transition: width 0.18s ease; }
+
+  #hud-right { top: 14px; right: 16px; text-align: right; }
+  #stars { font-size: 26px; letter-spacing: 3px; color: #ffd54f; text-shadow: 0 2px 5px rgba(0,0,0,0.7); opacity: 0.25; }
+  #cash { font-size: 27px; font-weight: 700; color: #a5d6a7; text-shadow: 0 2px 5px rgba(0,0,0,0.75); margin-top: 2px; }
+
+  #bust-wrap { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); width: 300px; z-index: 5; display: none; pointer-events: none; }
+  #bust-label { text-align: center; font-size: 13px; font-weight: 700; letter-spacing: 3px; color: #90caf9; text-shadow: 0 1px 4px #000; }
+  #bust-track { height: 9px; background: rgba(0,0,0,0.55); border-radius: 5px; overflow: hidden; margin-top: 3px; }
+  #bust-fill { height: 100%; width: 0%; background: #42a5f5; }
+
+  #objective { position: fixed; left: 16px; bottom: 16px; z-index: 5; max-width: 430px; font-size: 16.5px; line-height: 1.35;
+    background: rgba(8, 14, 20, 0.62); padding: 9px 13px; border-left: 4px solid #ffb300; border-radius: 4px; pointer-events: none; }
+  #prompt { position: fixed; left: 50%; bottom: 108px; transform: translateX(-50%); z-index: 5; font-size: 17px; font-weight: 600;
+    background: rgba(8, 14, 20, 0.7); padding: 8px 16px; border-radius: 20px; opacity: 0; transition: opacity 0.15s; pointer-events: none; }
+  #toast { position: fixed; left: 50%; top: 84px; transform: translateX(-50%); z-index: 6; font-size: 19px; font-weight: 600; text-align: center;
+    color: #ffe082; text-shadow: 0 2px 6px rgba(0,0,0,0.8); opacity: 0; transition: opacity 0.4s; pointer-events: none; max-width: 80%; }
+  #speedo { position: fixed; right: 18px; bottom: 16px; z-index: 5; font-size: 24px; font-weight: 700; color: #eceff1;
+    text-shadow: 0 2px 5px rgba(0,0,0,0.75); pointer-events: none; }
+
+  #briefing { position: fixed; right: 16px; top: 110px; width: 330px; z-index: 6; display: none;
+    background: rgba(10, 16, 24, 0.88); border: 1px solid #ffb300; border-radius: 8px; padding: 14px 16px; }
+  #briefing-title { font-size: 18px; color: #ffb300; margin-bottom: 6px; }
+  #briefing-text { font-size: 14.5px; line-height: 1.45; color: #eceff1; }
+  #briefing-hint { margin-top: 10px; font-size: 13px; color: #90caf9; }
+
+  .screen { position: fixed; inset: 0; z-index: 10; display: none; flex-direction: column; align-items: center; justify-content: center;
+    background: linear-gradient(160deg, rgba(38, 20, 8, 0.88), rgba(10, 24, 34, 0.92)); text-align: center; padding: 20px; }
+  .game-title { font-size: 74px; font-weight: 900; letter-spacing: 4px; line-height: 0.95;
+    background: linear-gradient(180deg, #ffe082, #ff7043 60%, #d81b60); -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 3px 0 rgba(0,0,0,0.45)); }
+  .game-sub { margin-top: 8px; font-size: 18px; color: #ffccbc; letter-spacing: 1px; }
+  .menu { margin-top: 30px; display: flex; flex-direction: column; gap: 12px; align-items: center; }
+  .menu button { pointer-events: auto; cursor: pointer; min-width: 250px; padding: 12px 26px; font-size: 18px; font-weight: 700; letter-spacing: 1px;
+    color: #10151c; background: linear-gradient(180deg, #ffd54f, #ffb300); border: none; border-radius: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.5); }
+  .menu button:hover { background: linear-gradient(180deg, #ffe082, #ffca28); }
+  .controls { margin-top: 30px; font-size: 14.5px; line-height: 1.75; color: #cfd8dc; background: rgba(0,0,0,0.35); padding: 14px 22px; border-radius: 8px; }
+  .controls b { color: #ffe082; font-weight: 700; }
+  #end-title { font-size: 64px; font-weight: 900; letter-spacing: 6px; }
+  #end-text { margin-top: 10px; font-size: 18px; color: #eceff1; }
+  .credit { position: fixed; bottom: 10px; right: 14px; z-index: 4; font-size: 12px; color: rgba(255,255,255,0.55); pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="game"></div>
+
+<div id="hud-left" class="hud-corner">
+  <canvas id="minimap" width="184" height="184"></canvas>
+  <div id="health-wrap"><div id="health-fill"></div></div>
+</div>
+<div id="hud-right" class="hud-corner">
+  <div id="stars">☆☆☆☆☆</div>
+  <div id="cash">$0</div>
+</div>
+<div id="bust-wrap">
+  <div id="bust-label">BUSTED</div>
+  <div id="bust-track"><div id="bust-fill"></div></div>
+</div>
+<div id="objective"></div>
+<div id="prompt"></div>
+<div id="toast"></div>
+<div id="speedo"></div>
+
+<div id="briefing">
+  <div id="briefing-title"></div>
+  <div id="briefing-text"></div>
+  <div id="briefing-hint">Press E to accept — or walk away</div>
+</div>
+
+<div id="title-screen" class="screen">
+  <div class="game-title">SOLANO<br>HEAT</div>
+  <div class="game-sub">One city. Five jobs. Every cop in Solano County.</div>
+  <div class="menu">
+    <button id="btn-new">NEW GAME</button>
+    <button id="btn-continue">CONTINUE</button>
+  </div>
+  <div class="controls">
+    <b>W A S D</b> move / drive &nbsp;·&nbsp; <b>Shift</b> sprint &nbsp;·&nbsp; <b>Mouse</b> camera<br>
+    <b>F</b> enter / exit car &nbsp;·&nbsp; <b>Space</b> punch (on foot) / handbrake (in car)<br>
+    <b>E</b> talk / accept job &nbsp;·&nbsp; <b>P</b> or <b>Esc</b> pause
+  </div>
+</div>
+
+<div id="pause-screen" class="screen">
+  <div class="game-title" style="font-size:52px;">PAUSED</div>
+  <div class="menu">
+    <button id="btn-resume">RESUME</button>
+    <button id="btn-restart">BACK TO TITLE</button>
+  </div>
+</div>
+
+<div id="end-screen" class="screen">
+  <div id="end-title">WASTED</div>
+  <div id="end-text"></div>
+  <div class="menu">
+    <button id="btn-respawn">CONTINUE</button>
+  </div>
+</div>
+
+<div class="credit">Solano Heat — an original open-world game, built for the browser</div>
+
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
